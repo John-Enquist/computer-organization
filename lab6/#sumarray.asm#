@@ -1,0 +1,151 @@
+## Sum an array with a subroutine.
+## David Hemmendinger 4 April 2006, edits by John Rieffel 2011, 2012
+##also edited by john enquist	
+
+PR_INT = 1                   # (example of defining a constant)
+        .data
+PR_STR = 4
+	.data
+newline:
+	.asciiz "\n"
+	.text
+	.data
+str:
+	.asciiz "The Sum of the Array is = "
+	.text
+	.data
+str2:
+	.asciiz "The array contains : "
+	.text
+	.data
+comma:
+	.asciiz ", "
+	.text
+	.data
+array:  .word 9, 8, 7, 6, 5, 4, 3
+endarr:
+        .text
+        .align 2
+main:   
+	la $a0, array        # a0 points into array
+	la $t0, endarr       # a1 points to array end
+	sub $t0, $t0, $a0
+	srl $a1, $t0, 2
+
+	addi $sp, $sp, -4    # push 
+	sw $ra, 0($sp)       #   ret addr on stack
+	jal isort
+	la $a0, array		#
+	jal printary
+	la $a0, array		#
+
+	li $v0, PR_STR
+	la $a0, newline
+	syscall
+
+	la $a0, array
+
+	jal arrsum	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+
+	move $a1, $v0	
+
+	li $v0, PR_STR
+	la $a0, str
+	syscall
+
+	add $a0, $0, $a1     # copy sum into $a0   
+	addi $v0, $0, PR_INT # print code in $v0
+	syscall
+	jr $ra                  
+
+## array-summation subroutine
+## register use:
+##	$a0: parameter: array addr; used as pointer to current element
+##	$a1: parameter: points just after the array end
+##	$v0: accumulator and return value
+##	$t2: temporary copy of current array element
+
+arrsum: 
+	move $v0, $0         # v0 accumulates sum
+	addi $t1, $0, 0      # i= 0 as a counter
+	
+	j sum
+bak:  	
+	sll $t2, $t1, 2		 # t2 = 4*t2
+	add $t2, $t2, $a0	 # t2 points to the current value
+	lw $t3, 0($t2)		#    get next array element
+	add $v0, $v0, $t3    #    add it in
+	addi $t1, $t1, 1     #    point to next word
+sum:    
+	blt $t1, $a1, bak   # while a0 < endarr do	
+	jr $ra
+
+printary:
+	move $t0, $0
+	move $t4, $a0
+	li $v0, PR_STR
+	la $a0, str2
+	syscall
+
+	j cont
+
+run:  	
+	sll $t2, $t1, 2		 # t2 = 4*t2
+	add $t2, $t2, $t4	 # t2 points to the current value
+	lw $t3, 0($t2)
+	
+	li $v0, PR_INT
+	move $a0, $t3
+	syscall
+
+	li $v0, PR_STR
+	la $a0, comma
+	syscall
+
+	addi $t1, $t1, 1
+cont:	
+	blt $t1, $a1, run
+	jr $ra
+
+### inset sort
+## $a0 array pointer
+## $v0 array size
+
+isort:
+	addi $t7, $0, 0		## variable j
+	addi $t8, $0, 0		## variable tmp
+	addi $t9, $0, 1		## variable i
+	move $a2, $a1
+	j for	
+		
+for:
+	bge $t9, $a2, end
+	add $t7, $0, $t9		## j = i
+	sll $t4, $t9, 2		## $t4 = i*4
+	add $t4, $t4, $a0	## $t4 base address a[0]
+	lw $t8, 0($t4)		##
+	j while
+while:
+	blt $t7, $0, done	## if j<0 branch to done
+	sll $t5, $t7, 2		## 
+	add $t5, $t5, $a0
+	lw $t6, -4($t5)
+		
+	blt $t6, $t8, done
+	sw $t6, 0($t5)
+	addi $t7, $t7, -1
+	j while
+		
+done:
+	sw $t8, 0($t5)
+	addi $t9, $t9, 1
+	j for
+		
+end:	jr $ra
+
+
+
+
+
